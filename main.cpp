@@ -1,23 +1,29 @@
 
 #include "ray.cpp"
-#include <random>
-#include <ctime>
+#include "noise.cpp"
+#include <cstdlib>
 
+#include <ctime>
 using namespace std;
+lcg l1;
+
 struct car{
     Particle pp;
     double score;
     bool finished;
 };
-
+vector<Boundry> walls;
 mt19937 mt8(time(0));
 sf::Vector2f start(75-5,350-5);
 sf::Vector2f end11(350-5,75-5);
-int popu=300;
-bool newgen=false;
-double numberofpart=35;
+int popu=100;
+bool newgen=true;
+double numberofpart=25;
 vector<car> alive;
+int generation=0;
+
 void newGeneration(NeuralNetwork BB1){
+    generation++;
     alive.clear();
     alive.resize(popu);
     if(newgen){
@@ -30,12 +36,75 @@ void newGeneration(NeuralNetwork BB1){
     }else{
         for(int iiii=0;iiii<popu;iiii++){
         alive[iiii].pp=Particle(start.x+4,start.y+4,numberofpart);
-        alive[iiii].pp.brain=NeuralNetwork::mutate4(BB1,0.1+iiii/10);
+        alive[iiii].pp.brain=NeuralNetwork::mutate4(BB1,0.1+iiii/100);
         alive[iiii].score=0;
         alive[iiii].finished=false;
     }}
 }
+
+vector<Vector2f> outside;
+vector<Vector2f> inside;
+vector<Vector2f> check11;
+
+
+static std::uniform_real_distribution<> dis5(0, height);
+static std::uniform_real_distribution<> dis6(0, 0.999999999999);
+void regeneratewalls(){
+    l1.setSeed11(0);
+    double noisemax=10;
+    //walls.clear();
+    double seed =dis6(mt2);
+    outside.clear();
+    inside.clear();
+    check11.clear();
+     static const double TWOPI = 6.2831853071795865;
+    for(double a=0;a<TWOPI;a+=toradian(20)){
+        double xoff=mapp5(cos(a),-1,1,0,noisemax);
+        double yoff=mapp5(cos(a),-1,1,0,noisemax);
+        double r=mapp5(noise2D(l1,xoff,yoff),0,1,200,height/2+50);
+        double x11=width/2+(r-50)*cos(a);
+        double y11=height/2+(r-50)*sin(a);
+        double x22=width/2+(r+50)*cos(a);
+        double y22=height/2+(r+50)*sin(a);
+        Vector2f a11;
+        Vector2f a22;
+        Vector2f c111;
+        c111.x=width/2+r*cos(a);
+        c111.y=height/2+r*sin(a);
+        a22.x=x22;
+        a22.y=y22;
+        a11.x=x11;
+        a11.y=y11;
+        outside.push_back(a11);
+        inside.push_back(a22);
+        check11.push_back(c111);
+    }
+    walls.clear();
+    checkpoint.clear();
+    for(int i=0;i<outside.size();i++){
+        if(i==outside.size()-1){
+        walls.push_back(Boundry(outside[i].x,outside[i].y,outside[0].x,outside[0].y,0.5));
+        walls.push_back(Boundry(inside[i].x,inside[i].y,inside[0].x,inside[0].y,0.5));
+        //checkpoint.push_back(Boundry(check11[i].x,check11[i].y,check11[0].x,check11[0].y,0.5));
+        checkpoint.push_back(Boundry(outside[i].x,outside[i].y,inside[i].x,inside[i].y,0.5));        
+
+            break;
+        }
+        walls.push_back(Boundry(outside[i].x,outside[i].y,outside[i+1].x,outside[i+1].y,0.5));
+        walls.push_back(Boundry(inside[i].x,inside[i].y,inside[i+1].x,inside[i+1].y,0.5));
+        checkpoint.push_back(Boundry(outside[i].x,outside[i].y,inside[i].x,inside[i].y,0.5));        
+    }
+    start.x=check11[0].x-5;
+    start.y=check11[0].y-5;
+    end11.x=check11[check11.size()-1].x-5;
+    end11.y=check11[check11.size()-1].y-5;
+}
 int main(){
+    l1=lcg();
+    l1.setSeed11(0);
+    cerr<<l1.m11<<endl;
+    //l1.seed11=abs(mt5()*l1.m11);
+    cerr<<l1.seed11<<endl;
     double xoff=0;
     double yoff=0;
 
@@ -47,6 +116,7 @@ int main(){
         b1=NeuralNetwork::importbrain();
     }
     checkpoint.push_back(Boundry(350,50,350,100,0.5));
+    regeneratewalls();
     newGeneration(b1);
     sta1.setPosition(start);
     end1.setPosition(end11);
@@ -54,8 +124,7 @@ int main(){
     //walls
         
 
-    vector<Boundry> walls;
-        {
+        /*{
         walls.push_back(Boundry(50,400,50,200,0.5));
         walls.push_back(Boundry(50,200,150,50,0.5));
         walls.push_back(Boundry(150,50,400,50,0.5));
@@ -66,7 +135,7 @@ int main(){
         walls.push_back(Boundry(0,400,400,400,0));
         walls.push_back(Boundry(0,0,0,400,0));
         walls.push_back(Boundry(0,0,400,0,0));
-        }
+        }*/
     //walls
     vector<car> dead;
     long long cycle=0;
@@ -99,26 +168,33 @@ int main(){
                 }
         }
         window.clear();
+
         //generate new track
         if(sf::Keyboard::isKeyPressed(sf::Keyboard::F5)){
-            walls.clear();
+            /*walls.clear();
             for(int jjj=0;jjj<numofwall;jjj++){
         walls.push_back(Boundry(mt8()%int(width),mt8()%int(width),mt8()%int(height),mt8()%int(height)));
-        }}
+        }*/
+        regeneratewalls();
+        sta1.setPosition(start);
+        end1.setPosition(end11);
+
+        }
         //generate new track
         //showing the cars and applying forces
         for(int i=0;i<alive.size();i++){
-        alive[i].pp.applyforce(sf::Vector2f(0,-0.4));        
+        alive[i].pp.applyforce(sf::Vector2f(0,-0.05));        
         alive[i].pp.update();
         
             // cerr<<"checking\n";
-        
+        if(cycle%5==0){
         alive[i].finished=alive[i].pp.check();
-        
+        }
             // cerr<<"checked\n";
         
         bool aa=alive[i].pp.show(walls);
         if(aa||alive[i].finished){
+            alive[i].score+=accumulate(alive[i].pp.checks.begin(),alive[i].pp.checks.end(),0)*1000;
             dead.resize(dead.size()+1);
             swap(alive[i],alive[alive.size()-1]);
             swap(dead[dead.size()-1],alive[alive.size()-1]);
@@ -132,6 +208,7 @@ int main(){
              window.draw(end1);
             //drawing start and end
         //drawing walls and checkpoints
+        
         for(auto wall:walls){
             wall.draw();
         }
@@ -141,7 +218,7 @@ int main(){
         //drawing walls and checkpoints
     window.display();
     //pick one function
-    if(dead.size()==popu &&cycle%100==0||cycle>600){
+    if(dead.size()==popu &&cycle%100==0||cycle>200*generation||sf::Keyboard::isKeyPressed(sf::Keyboard::F7)&&cycle%100==0){
         cerr<<"cleaning\n";
         int maxiu=0;
         int maxiub=0;

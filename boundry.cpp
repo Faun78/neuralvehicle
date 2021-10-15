@@ -3,9 +3,11 @@
 #include <SFML/Graphics.hpp>
 #include <tgmath.h>
 #include <math.h>
-double height=400;
-double width=400;
-
+double height=800;
+double width=800;
+double mapp5(double n,double start1,double stop1,double start2,double stop2){
+     return ((n-start1)/(stop1-start1))*(stop2-start2)+start2;
+};
 using namespace sf;
 RenderWindow window(VideoMode(height,width), "SFML works!");
 Vector2f normalized(const Vector2f& source){

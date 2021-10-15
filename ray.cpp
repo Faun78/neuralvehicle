@@ -77,7 +77,7 @@ class Particle{
         std::vector <int> checks;
         sf::RectangleShape pp; 
         double numberofrays;
-        double sight=60;
+        double sight=35;
         Particle(double x,double y,double numberofray){
             pp=sf::RectangleShape(sf::Vector2f(carwidth,carheight));
             vel.x=0;
