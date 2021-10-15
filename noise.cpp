@@ -18,6 +18,8 @@
 #include <math.h>
 #include <vector>
 #include <random>
+#include <ctime>
+
 
 using namespace std;
 const int PERLIN_YWRAPB = 4;
@@ -30,7 +32,7 @@ int perlin_octaves = 4; // default to medium smooth
 float perlin_amp_falloff = 0.5; // 50% reduction/octave
     
 double PI1 =3.14159265359;
-mt19937 mt5;
+mt19937 mt5(time(0));
 
 float scaled_cosine (float i ){ 
  return 0.5 * (1.0 - cos(i * PI1));
