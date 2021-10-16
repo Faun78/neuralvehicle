@@ -6,6 +6,7 @@
 #include "matrix.cpp"
 #include <random>
 #include <ctime>
+#include <math.h> 
 using namespace std;
 
 mt19937 mt3(time(0));
@@ -21,7 +22,7 @@ double dsigmoid(double x){
     return sigmoid(x)*(1-sigmoid(x));
     //return y*(1-y);
 }
-double randval(int min=0,int max=1){
+double randval(int min=-1,int max=1){
     static std::uniform_real_distribution<> dis(min, max); // rage 0 - 1
     return dis(mt3);
     }
@@ -72,7 +73,7 @@ class NeuralNetwork{
             // cerr<<"output done\n";
 
             output.add(bias_o);
-            output.map1(sigmoid);
+            output.map1(tanh);
             // cerr<<"returning done\n";
             // cerr<<output.cols<<endl;
             return output.toarray(arr);

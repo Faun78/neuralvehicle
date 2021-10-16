@@ -2,13 +2,14 @@
 #include "boundry.cpp"
 #include "nn.cpp"
 std::vector<Boundry> checkpoint;
+static const double TWOPI = 6.2831853071795865;
+double conspeed= 0.9;
 double maxspeed=40;
 double toradian(double degree){
     double pi = 3.14159265359;
     return (degree * (pi / 180));
 }
 double bearing(double a1, double a2, double b1, double b2) {
-    static const double TWOPI = 6.2831853071795865;
     static const double RAD2DEG = 57.2957795130823209;
     // if (a1 = b1 and a2 = b2) throw an error 
     double theta = atan2(b1 - a1, a2 - b2);
@@ -77,7 +78,7 @@ class Particle{
         std::vector <int> checks;
         sf::RectangleShape pp; 
         double numberofrays;
-        double sight=35;
+        double sight=100;
         Particle(double x,double y,double numberofray){
             pp=sf::RectangleShape(sf::Vector2f(carwidth,carheight));
             vel.x=0;
@@ -91,7 +92,7 @@ class Particle{
             for(double i=0;i<360;i+=numberofrays){
                 rays1.push_back(Ray(pos,toradian(i)));
             }
-        brain =NeuralNetwork(rays1.size(),15,1);
+        brain =NeuralNetwork(rays1.size(),18,2);
         }
         void applyforce(Vector2f force){
             acc+=force;
@@ -115,8 +116,8 @@ class Particle{
                 cerr<<"better"<<endl;
 
             }
-           pos+=vel;
            vel+=acc;
+           pos+=vel;
            acc.x=0;
            acc.y=0;
            rays1.clear();
@@ -172,12 +173,13 @@ class Particle{
                 window.draw(pp);
                 return true;
             }
-            double arr[1];
-            double output =brain.feedforward(inputs,arr)[0];
-            double angle11=output*2*2*acos(0.0);
+            double arr[2];
+            double *output =brain.feedforward(inputs,arr);
+            //double angle11=mapp5(output[0],-1,1,0,TWOPI);
+            //cerr<<sin(angle11)<<endl;
             Vector2f des;
-            des.x=cos(angle11);
-            des.y=sin(angle11);
+            des.x=output[0]*conspeed;
+            des.y=output[1]*conspeed;
             des-=vel;
             /*double anglex1=vel.x/4;
             double angley1=vel.y/4;
@@ -186,13 +188,23 @@ class Particle{
             double angx=acos(anglex1);
             double angy=acos(angley1);*/
             //cerr<<angx<<" "<<angy<<endl;
-            
-            pp.setRotation(bearing(pos.x,pos.y,pos.x+vel.x,pos.y+vel.y));
+            double newrot=bearing(pos.x,pos.y,pos.x+vel.x,pos.y+vel.y);
+            if(abs(newrot-pp.getRotation())>10){
+                if(newrot<pp.getRotation()){
+              pp.setRotation(pp.getRotation()-10); 
+              }else{
+              pp.setRotation(pp.getRotation()+10); 
+
+              } 
+            }else{
+            pp.setRotation(newrot);
+            }
             applyforce(des);
             window.draw(pp);
             return false;
         };
         bool check(){
+             //checks.resize(checkpoint.size());
                 for(auto ray1:rays1){
                 double record =INFINITY;
                 sf::Vector2f dest1;
@@ -209,7 +221,7 @@ class Particle{
                             return false;
                         }
                         // cerr<<ddd<<endl;
-                        if(ddd<=(carheight/2)*0.2){
+                        if(ddd<=(carheight/2)*0.9){
                             //cerr<<"adding at "<<checks.size()<<endl;
                             checks[i]=1;
                             // cerr<<"added\n";

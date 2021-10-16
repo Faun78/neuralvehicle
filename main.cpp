@@ -16,9 +16,9 @@ vector<Boundry> walls;
 mt19937 mt8(time(0));
 sf::Vector2f start(75-5,350-5);
 sf::Vector2f end11(350-5,75-5);
-int popu=100;
-bool newgen=true;
-double numberofpart=25;
+int popu=110;
+bool newgen=false;
+double numberofpart=35;
 vector<car> alive;
 int generation=0;
 
@@ -36,7 +36,11 @@ void newGeneration(NeuralNetwork BB1){
     }else{
         for(int iiii=0;iiii<popu;iiii++){
         alive[iiii].pp=Particle(start.x+4,start.y+4,numberofpart);
+        if(iiii!=0){
         alive[iiii].pp.brain=NeuralNetwork::mutate4(BB1,0.1+iiii/100);
+        }else{
+           alive[iiii].pp.brain=BB1; 
+        }
         alive[iiii].score=0;
         alive[iiii].finished=false;
     }}
@@ -49,6 +53,8 @@ vector<Vector2f> check11;
 
 static std::uniform_real_distribution<> dis5(0, height);
 static std::uniform_real_distribution<> dis6(0, 0.999999999999);
+static std::uniform_real_distribution<> dis8(-0.06, 0.06);
+
 void regeneratewalls(){
     l1.setSeed11(0);
     double noisemax=10;
@@ -56,9 +62,8 @@ void regeneratewalls(){
     double seed =dis6(mt2);
     outside.clear();
     inside.clear();
-    check11.clear();
      static const double TWOPI = 6.2831853071795865;
-    for(double a=0;a<TWOPI;a+=toradian(20)){
+    for(double a=0;a<TWOPI;a+=toradian(25)){
         double xoff=mapp5(cos(a),-1,1,0,noisemax);
         double yoff=mapp5(cos(a),-1,1,0,noisemax);
         double r=mapp5(noise2D(l1,xoff,yoff),0,1,200,height/2+50);
@@ -78,6 +83,7 @@ void regeneratewalls(){
         outside.push_back(a11);
         inside.push_back(a22);
         check11.push_back(c111);
+
     }
     walls.clear();
     checkpoint.clear();
@@ -85,9 +91,8 @@ void regeneratewalls(){
         if(i==outside.size()-1){
         walls.push_back(Boundry(outside[i].x,outside[i].y,outside[0].x,outside[0].y,0.5));
         walls.push_back(Boundry(inside[i].x,inside[i].y,inside[0].x,inside[0].y,0.5));
-        //checkpoint.push_back(Boundry(check11[i].x,check11[i].y,check11[0].x,check11[0].y,0.5));
+        walls.push_back(Boundry(outside[0].x-10,outside[0].y-20,inside[0].x+10,inside[0].y-20,0.5));
         checkpoint.push_back(Boundry(outside[i].x,outside[i].y,inside[i].x,inside[i].y,0.5));        
-
             break;
         }
         walls.push_back(Boundry(outside[i].x,outside[i].y,outside[i+1].x,outside[i+1].y,0.5));
@@ -98,6 +103,8 @@ void regeneratewalls(){
     start.y=check11[0].y-5;
     end11.x=check11[check11.size()-1].x-5;
     end11.y=check11[check11.size()-1].y-5;
+    check11.clear();
+
 }
 int main(){
     l1=lcg();
@@ -115,7 +122,6 @@ int main(){
     if(!newgen){
         b1=NeuralNetwork::importbrain();
     }
-    checkpoint.push_back(Boundry(350,50,350,100,0.5));
     regeneratewalls();
     newGeneration(b1);
     sta1.setPosition(start);
@@ -135,7 +141,9 @@ int main(){
         walls.push_back(Boundry(0,400,400,400,0));
         walls.push_back(Boundry(0,0,0,400,0));
         walls.push_back(Boundry(0,0,400,0,0));
+    checkpoint.push_back(Boundry(350,50,350,100,0.5));
         }*/
+        
     //walls
     vector<car> dead;
     long long cycle=0;
@@ -183,24 +191,24 @@ int main(){
         //generate new track
         //showing the cars and applying forces
         for(int i=0;i<alive.size();i++){
-        alive[i].pp.applyforce(sf::Vector2f(0,-0.05));        
+        alive[i].pp.applyforce(sf::Vector2f(dis8(mt2),dis8(mt2)));        
         alive[i].pp.update();
-        
+        alive[i].score+=1;
             // cerr<<"checking\n";
-        if(cycle%5==0){
+       
         alive[i].finished=alive[i].pp.check();
-        }
+        
             // cerr<<"checked\n";
         
         bool aa=alive[i].pp.show(walls);
         if(aa||alive[i].finished){
-            alive[i].score+=accumulate(alive[i].pp.checks.begin(),alive[i].pp.checks.end(),0)*1000;
+            //alive[i].score+=accumulate(alive[i].pp.checks.begin(),alive[i].pp.checks.end(),0)*1000;
             dead.resize(dead.size()+1);
             swap(alive[i],alive[alive.size()-1]);
             swap(dead[dead.size()-1],alive[alive.size()-1]);
             alive.pop_back();
+            i-=1;
         }
-        alive[i].score+=1;
         }
         //showing the cars and applying forces
             //drawing start and end
@@ -218,14 +226,31 @@ int main(){
         //drawing walls and checkpoints
     window.display();
     //pick one function
-    if(dead.size()==popu &&cycle%100==0||cycle>200*generation||sf::Keyboard::isKeyPressed(sf::Keyboard::F7)&&cycle%100==0){
+    if(dead.size()==popu &&cycle%100==0||cycle>min(max(200*generation,1500),3000)||sf::Keyboard::isKeyPressed(sf::Keyboard::F7)&&cycle%100==0){
         cerr<<"cleaning\n";
+        for(int i=0;i<alive.size();i++){
+            dead.resize(dead.size()+1);
+            swap(alive[i],alive[alive.size()-1]);
+            swap(dead[dead.size()-1],alive[alive.size()-1]);
+            alive.pop_back();
+            i-=1;
+        }
+        alive.clear();
         int maxiu=0;
         int maxiub=0;
-
+        int maxchecks=0;
         for(int uu=0;uu<dead.size();uu++){
-            if(dead[uu].score>dead[maxiu].score){
+            int numofcehckspass =accumulate(dead[uu].pp.checks.begin(),dead[uu].pp.checks.end(),0);
+            //cerr<<numofcehckspass<<endl;
+        if(numofcehckspass>=maxchecks){
+            //cerr<<numofcehckspass<<endl;
+            if(numofcehckspass==maxchecks){
+                if(dead[uu].score>dead[maxiu].score){
+                    continue;
+                }
+            }
                 maxiu=uu;
+                maxchecks=numofcehckspass;
             }
             if(dead[uu].finished){
                 if(dead[uu].score<dead[maxiub].score||!dead[maxiub].finished)
@@ -240,8 +265,8 @@ int main(){
         cerr<<dead[maxiub].score<<" finished "<<maxiub<<endl;
         }else{
         //dead[maxiu].pp.brain.exportBrain();
+        cerr<<dead[maxiu].score<<" "<<maxchecks<<" "<<dead.size()<<" "<<alive.size()<<endl;
         newGeneration(dead[maxiu].pp.brain);
-        cerr<<dead[maxiu].score<<endl;
         }
         //window.close();
         dead.clear();
