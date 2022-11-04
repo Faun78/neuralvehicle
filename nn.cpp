@@ -3,38 +3,13 @@
 //TODO: #1 Figure out why is NN with bias not working at all and without bias working correctly  
 #include <iostream>
 #include <fstream>
-#include "matrix.cpp"
+#include "Layer.cpp"
 #include <random>
 #include <ctime>
 #include <math.h> 
 using namespace std;
 
-mt19937 mt3(time(0));
 
-double sigmoid(double x){
-    return (1/(1+exp(-x)));
-}
-double dsigmoid2(double y){
-    //return sigmoid(x)*(1-sigmoid(x));
-    return y*(1-y);
-}
-double dsigmoid(double x){
-    return sigmoid(x)*(1-sigmoid(x));
-    //return y*(1-y);
-}
-double randval(int min=-1,int max=1){
-    static std::uniform_real_distribution<> dis(min, max); // rage 0 - 1
-    return dis(mt3);
-    }
-double mutate3(double z,double rate){
-    double ran =randval(-1,1);
-    //cerr<<ran<<endl;
-    if(ran<rate){
-    //cerr<<"Mutated\n";
-    return z+randval(-1,1);
-    }else{
-    return z;
-    }}
 class NeuralNetwork{
     public:
         int input_nodes;
@@ -46,6 +21,11 @@ class NeuralNetwork{
         Matrix weights_ho;
         Matrix bias_h;
         Matrix bias_o;
+        vector<Layer>layers;
+        double (*activasionh)(double);
+        double (*deactivasionh)(double);
+        double (*activasiono)(double);
+        double (*deactivasiono)(double);
         NeuralNetwork(){
             
         }
@@ -55,12 +35,19 @@ class NeuralNetwork{
         output_nodes=numO;
         learningrate=0.1;
         novector = vec;
+        activasionh=SeLU;
+        deactivasionh=detanh;
+        activasiono=SeLU;
+        deactivasiono=deSeLU;
         weights_ih.resize1(hidden_nodes,input_nodes,vec);
         weights_ho.resize1(output_nodes,hidden_nodes,vec);
         bias_h.resize1(hidden_nodes,1,vec);//check if i need to randomize it //CHECKED I NEED//
         bias_o.resize1(output_nodes,1,vec);//check if i need to randomize it //CHECKED I NEED//
         }
-         double* feedforward(double input[],double arr[]){
+        void addlayer(int inp,int out,double (*activasionin)(double),double (*deactivasionin)(double),bool randomize=true){
+            layers.push_back(Layer(inp,out,activasionin,deactivasionin));
+        }
+        double* feedforward(double input[],double arr[]){
             //Generate Hidden layer
             Matrix inputs = Matrix::fromarray(input,input_nodes);
             // cerr<<"inputs done\n";
@@ -68,15 +55,37 @@ class NeuralNetwork{
             // cerr<<"hidden done\n";
 
             hidden.add(bias_h);
-            hidden.map1(sigmoid);
+            hidden.map1(activasionh);
             Matrix output =Matrix::multiply(weights_ho,hidden);
             // cerr<<"output done\n";
 
             output.add(bias_o);
-            output.map1(tanh);
+            output.map1(activasiono);
             // cerr<<"returning done\n";
             // cerr<<output.cols<<endl;
             return output.toarray(arr);
+        }
+        double* feedforward2(double input[],double arr[]){
+            Matrix temp;
+            for(int i=0;i<layers.size();i++){
+                temp=(layers[i].feed(temp));
+            }
+            return temp.toarray(arr);
+        }
+        void train2(double input[], double target[]){
+            Matrix inputs = Matrix::fromarray(input,input_nodes);
+            vector<Matrix>temp;
+            temp.push_back(inputs);
+            for(int i=0;i<layers.size();i++){
+                temp.push_back(layers[i].feed(temp[i]));
+            }
+            Matrix targets=Matrix::fromarray(target,output_nodes);
+            Matrix errorofuotput=Matrix::subtract(targets,temp[temp.size()-1]);
+            vector<Matrix>temp2;
+            temp2.push_back(errorofuotput);
+            for(int i=layers.size()-2;i>=0;i--){
+                temp2.push_back(layers[i].train(temp[i],temp2[temp2.size()-1],learningrate));
+            }
         }
         void train(double input[], double target[]){
             //FeedForward Start
@@ -85,11 +94,11 @@ class NeuralNetwork{
             Matrix inputs = Matrix::fromarray(input,input_nodes);
             Matrix hidden = Matrix::multiply(weights_ih,inputs);
             hidden.add(bias_h);
-            hidden.map1(sigmoid);
+            hidden.map1(activasionh);
             //creating outputs from hidden
             Matrix outputs =Matrix::multiply(weights_ho,hidden);
             outputs.add(bias_o);
-            outputs.map1(sigmoid);
+            outputs.map1(activasiono);
             
             //FeedForwardEnd
             
@@ -99,8 +108,9 @@ class NeuralNetwork{
             //ERROR =targets -outputs
             Matrix errorofuotput=Matrix::subtract(targets,outputs);
             //maping outputs problems
-
-            Matrix gradients = Matrix::map1(outputs,dsigmoid2);
+            outputs =Matrix::multiply(weights_ho,hidden);
+            outputs.add(bias_o);
+            Matrix gradients = Matrix::map1(outputs,deactivasiono);
             gradients.multiply(errorofuotput);
             gradients.multiply(learningrate);//TO DO learning_rate
             
@@ -118,8 +128,9 @@ class NeuralNetwork{
             
             //Correcting Inputs hidden nodes
 
-            
-            Matrix hidden_gradient = Matrix::map1(hidden,dsigmoid2);
+            hidden = Matrix::multiply(weights_ih,inputs);
+            hidden.add(bias_h);
+            Matrix hidden_gradient = Matrix::map1(hidden,deactivasionh);
             hidden_gradient.multiply(hidden_errors);
             hidden_gradient.multiply(learningrate);
 
@@ -128,7 +139,6 @@ class NeuralNetwork{
 
             weights_ih.add(weight_ih_deltas); 
             bias_h.add(hidden_gradient);
-        //done
         return;
 
         }
@@ -168,8 +178,6 @@ class NeuralNetwork{
             Matrix targets=Matrix::fromarray(target,output_nodes);
             Matrix errorofuotput=Matrix::subtract(targets,output);
             return errorofuotput.toarray(arr);
-
-
         }
         static NeuralNetwork mutate4(NeuralNetwork b,double rate=0.1){
             NeuralNetwork a =b;

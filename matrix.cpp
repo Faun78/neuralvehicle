@@ -54,17 +54,22 @@ class Matrix{
             for(int i=0;i<rows;i++){
                 for(int j=0;j<cols;j++){
                     double h=data[i][j];
-                    data[i][j]=f(h,r);
-                }}}
+                    double test1=f(h,r);
+                    //cerr<<test1<<endl;
+                    data[i][j]=test1;
+                }
+            }
+        }
          static Matrix map1(Matrix a ,double (*f)(double)){
             Matrix result(a.rows,a.cols,false);
             for(int i=0;i<a.rows;i++){
                 for(int j=0;j<a.cols;j++){
                     double h=a.data[i][j];
                     result.data[i][j]=f(h);
-                }}
-                return result;
                 }
+            }
+            return result;
+        }
 
          void add(Matrix scaler1){
             for(int i=0;i<rows;i++){
