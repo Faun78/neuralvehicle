@@ -3,15 +3,15 @@
 #include "nn.cpp"
 std::vector<Boundry> checkpoint;
 static const double TWOPI = 6.2831853071795865;
+int maxcheckpoint=0;
 double conspeed= 0.9;
-double maxspeed=40;
+double maxspeed=2;
 double toradian(double degree){
     double pi = 3.14159265359;
     return (degree * (pi / 180));
 }
 double bearing(double a1, double a2, double b1, double b2) {
     static const double RAD2DEG = 57.2957795130823209;
-    // if (a1 = b1 and a2 = b2) throw an error 
     double theta = atan2(b1 - a1, a2 - b2);
     if (theta < 0.0)
         theta += TWOPI;
@@ -30,7 +30,6 @@ class Ray{
             pos=pos1;
             dir.x=cos(angle);
             dir.y=sin(angle);
-            //std::cerr<<dir.x<<dir.y<<std::endl;
             line1=Boundry(pos.x,pos.y,pos.x+dir.x*10,pos.y+dir.y*10,0.5);
         }
         void lookat(double x55,double y55){
@@ -51,7 +50,6 @@ class Ray{
             const double y4=pos.y+dir.y;
             double den= (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
             if(den==0){
-                //std::cerr<<"dead\n";
                 return Vector2f(-10000,-10);
             }
             double t= ((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den;
@@ -68,18 +66,18 @@ class Ray{
 
         }
 };
-class Particle{
+class Car{
     public:
         Vector2f pos;
         Vector2f vel;
         Vector2f acc;
         std::vector <Ray> rays1;
-        NeuralNetwork brain;
+        NeuralNetworkLayers brain;
         std::vector <int> checks;
         sf::RectangleShape pp; 
         double numberofrays;
         double sight=100;
-        Particle(double x,double y,double numberofray){
+        Car(double x,double y,double numberofray){
             pp=sf::RectangleShape(sf::Vector2f(carwidth,carheight));
             vel.x=0;
             vel.y=0;
@@ -88,17 +86,18 @@ class Particle{
             checks.resize(checkpoint.size(),0); 
             numberofrays=numberofray;
             pos=Vector2f(x,y);
-           rays1.clear();
+            rays1.clear();
             for(double i=0;i<360;i+=numberofrays){
                 rays1.push_back(Ray(pos,toradian(i)));
             }
-        brain =NeuralNetwork(rays1.size(),18,2);
+            brain =NeuralNetworkLayers();
+            brain.addlayer(rays1.size()+1,25,"Tanh");
+            brain.addlayer(25,2,"Tanh");
         }
         void applyforce(Vector2f force){
             acc+=force;
         }
         void update(){
-            //cerr<<vel.y<<endl;
             if(vel.x>maxspeed){
                 cerr<<"better"<<endl;
                 vel.x=maxspeed;
@@ -125,24 +124,26 @@ class Particle{
                 rays1.push_back(Ray(pos,toradian(i)));
             }
         }
-        Particle(){
-
+        Car(){
         }
-
         bool show(std::vector<Boundry> w1,bool showbounds=false){
             bool touch=false;
             double inputs[rays1.size()];
             pp.setFillColor(sf::Color(sf::Color(255,255,255,150)));
             pp.setPosition(pos.x-carwidth/2,pos.y-carheight/2);
             int calcr=0;
+            int checkspass=accumulate(checks.begin(),checks.end(),0);
+            if(checkspass<maxcheckpoint-5){
+                touch=true;
+            }
+            int numofraysout=0;
             for(auto ray1:rays1){
-                
                 double record =INFINITY;
                 sf::Vector2f dest1;
                 dest1.x=-10000;
                 dest1.y=0;
                 if(showbounds){
-                ray1.line1.draw(false);
+                    ray1.line1.draw(false);
                 }
                 for(int i=0;i<w1.size();i++){
                     sf::Vector2f dest= ray1.cast(w1[i]);
@@ -153,9 +154,10 @@ class Particle{
                             dest1=dest;
                         }
                         if(ddd<=(carheight/2)*0.85){
-                            //std::cerr<<"hit\n";
-                        touch=true;
-                    }}}
+                            touch=true;
+                        }
+                    }
+                }
                 if(dest1.x!=-10000){
                     bool docoloring=false;
                     inputs[calcr]=(sqrt(pow(dest1.x - pos.x, 2) + pow(dest1.y - pos.y, 2) * 1.0))/sight;
@@ -163,38 +165,30 @@ class Particle{
                     Boundry line5(pos.x,pos.y,dest1.x,dest1.y,0.5);
                     line5.draw(docoloring);
                     }
-            }else{
-                inputs[calcr]=1;
+                }else{
+                    numofraysout++;
+                    inputs[calcr]=1;
+                }
+                calcr++;
             }
-            calcr++;
-            }
-            if(touch){
+            if(touch||numofraysout==rays1.size()){
                 pp.setFillColor(sf::Color(sf::Color::Red));
                 window.draw(pp);
                 return true;
             }
             double arr[2];
-            double *output =brain.feedforward(inputs,arr);
-            //double angle11=mapp5(output[0],-1,1,0,TWOPI);
-            //cerr<<sin(angle11)<<endl;
+            inputs[rays1.size()]=(abs(pp.getRotation()))/360;
+            double *output =brain.feedforwardLayer(inputs,arr);
             Vector2f des;
             des.x=output[0]*conspeed;
             des.y=output[1]*conspeed;
             des-=vel;
-            /*double anglex1=vel.x/4;
-            double angley1=vel.y/4;
-            double anglex2=pos.x;
-            double angley2=pos.y;
-            double angx=acos(anglex1);
-            double angy=acos(angley1);*/
-            //cerr<<angx<<" "<<angy<<endl;
             double newrot=bearing(pos.x,pos.y,pos.x+vel.x,pos.y+vel.y);
-            if(abs(newrot-pp.getRotation())>10){
+            if(abs(newrot-pp.getRotation())>5){
                 if(newrot<pp.getRotation()){
-              pp.setRotation(pp.getRotation()-10); 
+              pp.setRotation(pp.getRotation()-5); 
               }else{
-              pp.setRotation(pp.getRotation()+10); 
-
+              pp.setRotation(pp.getRotation()+5); 
               } 
             }else{
             pp.setRotation(newrot);
@@ -204,14 +198,17 @@ class Particle{
             return false;
         };
         bool check(){
-             //checks.resize(checkpoint.size());
+                int maxi=0;
                 for(auto ray1:rays1){
                 double record =INFINITY;
                 sf::Vector2f dest1;
                 dest1.x=-10000;
                 dest1.y=0;
-                for(int i=0;i<checkpoint.size();i++){
+                for(int i=checkpoint.size()-1;i>-1;i--){
                     sf::Vector2f dest= ray1.cast(checkpoint[i]);
+                    if(maxi>0){
+                        checks[i]=1;
+                    }
                     if(dest.x!=-10000){
                         double ddd =sqrt(pow(dest.x - pos.x, 2) + pow(dest.y - pos.y, 2) * 1.0);
                         if(ddd<record &&ddd<sight){
@@ -220,17 +217,21 @@ class Particle{
                         }else{
                             return false;
                         }
-                        // cerr<<ddd<<endl;
                         if(ddd<=(carheight/2)*0.9){
-                            //cerr<<"adding at "<<checks.size()<<endl;
                             checks[i]=1;
-                            // cerr<<"added\n";
-                                 if(checks.size()==accumulate(checks.begin(),checks.end(),0)){
-                                    return true;
-                                 }else{
-                                     return false;
-                                 }            
-                    }}}  
+                            maxi=i;
+                            int checkspass=accumulate(checks.begin(),checks.end(),0);
+                            if(checkspass>maxcheckpoint){
+                                maxcheckpoint=checkspass;
+                            }
+                            if(checks.size()==checkspass){
+                                return true;
+                            }else{
+                                return false;
+                            }            
+                        }
+                    }
+                }  
             }
             return false;  
         };

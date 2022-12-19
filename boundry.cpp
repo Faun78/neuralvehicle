@@ -9,7 +9,7 @@ double mapp5(double n,double start1,double stop1,double start2,double stop2){
      return ((n-start1)/(stop1-start1))*(stop2-start2)+start2;
 };
 using namespace sf;
-RenderWindow window(VideoMode(height,width), "SFML works!");
+RenderWindow window(VideoMode(height,width), "Neural Vehicle!");
 Vector2f normalized(const Vector2f& source){
     float length = std::sqrt((source.x * source.x) + (source.y * source.y));
     if (length != 0)
@@ -48,8 +48,6 @@ class Boundry{
         if(colo1){
             for(int i=0;i<4;i++){
                 line[i].color =  sf::Color(255, 255, 255, 45);
-                //lin.color =  sf::Color(0, 0, 0, 255)
-
             }
         }
         window.draw(line, 4, sf::TriangleStrip);  

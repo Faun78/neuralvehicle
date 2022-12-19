@@ -4,3 +4,10 @@ a:
 	./app <zadani.txt >reseni.txt
 	./app >zadani1.txt <reseni.txt
 	make
+c:
+	g++ -c main.cpp 
+	g++ main.o -o app -lsfml-graphics -lsfml-window -lsfml-system
+	./app <zadani.txt >reseni.txt
+	./app >zadani1.txt <reseni.txt
+	rm -o main.o
+	
